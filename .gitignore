@@ -5,6 +5,9 @@
 # Terus "__pychache__/" artinya mengabaikan folder "__pycache__" TERMASUK ISINYA!
 # Kalau "__pychache__/auth.cpython-312.pyc" artinya hanya mengabaikan file "auth.cpython-312.pyc" yang berada di folder "__pycache__"
 
+venv/
+.venv/
+.vscode/
 __pycache__/
 DB/*.db
-NOTE
+NOTE.md
