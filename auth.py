@@ -1,5 +1,6 @@
+from bcrypt import checkpw
 from database import add_user, verification
-from config import USERNAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH
+from config import USERNAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MAX_BYTES
 
 def validation_format(name, password):
     if not isinstance(name, str):
@@ -21,7 +22,23 @@ def validation_format(name, password):
     return True
 
 def validation(name, password):
-    return password == verification(name)
+    if not isinstance(name, str) or not isinstance(password, str):
+        return "ENTER CHARACTERS ONLY!"
+    bytes_password = password.encode("utf-8")
+    if len(bytes_password) > PASSWORD_MAX_BYTES:
+        return f"PASSWORD TOO LONG! PLEASE USE A SHORTER PASSWORD."
+    hashed_password = verification(name)
+    if hashed_password is None:
+        return "UNKNOWN USERNAME!"
+    if not isinstance(hashed_password, str):
+        return "SAVED PASSWORD ERROR IN STORAGE!"
+    try:
+        if checkpw(bytes_password, hashed_password.encode("utf-8")) is True:
+            return True
+    except ValueError:
+        return "SAVED PASSWORD ERROR IN STORAGE!"
+    else:
+        return "WRONG PASSWORD!"
 
 def haveAccount():
     while True:
@@ -36,41 +53,44 @@ def login():
     name = input("\nYour username: ")
     password = input("Password: ")
     valid = validation_format(name, password)
-    if valid is not True:
-        return f"\nLOGIN FAILED {valid}"
-    elif validation(name, password):
+    if isinstance(valid, str):
+        return f"\nLOGIN FAILED: {valid}"
+    check = validation(name, password)
+    if check is True:
         return name
     else:
-        return False
+        return f"\nLOGIN FAILED: {check}"
 
 def register():
     name = input("\nYour username: ")
     password = input("Password: ")
     valid = validation_format(name, password)
-    if valid is not True:
+    if isinstance(valid, str):
         return f"\nREGISTRATION FAILED: {valid}"
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > PASSWORD_MAX_BYTES:
+        return "PASSWORD TOO LONG! PLEASE USE A SHORTER PASSWORD."
+    result = add_user(name, password)
+    if result is True:
+        return f"\nREGISTRATION SUCCESSFUL: Account {name} has been SUCCESSFULLY REGISTERED!"
     else:
-        result = add_user(name, password)
-        if result is True:
-            return f"\nREGISTRATION SUCCESSFUL: Account {name} has been SUCCESSFULLY REGISTERED!"
-        else:
-            return f"\nREGISTRATION FAILED: {result}"
+        return f"\nREGISTRATION FAILED: {result}"
 
 
 if __name__ == "__main__":
     """=== MAINTENANCE MODE ==="""
     
-    # Menguji auth.py dari NOL!
+    # TESTING AUTH.PY FROM SCRATCH!
     # haveAccount()
 
-    # MENAMBAHKAN akun BARU secara MANUAL:
+    # MANUALLY ADDING A NEW ACCOUNT:
     # print(f"Status: {register()}")
 
-    # Menguji apakah AKUN bisa LOGIN atau TIDAK:
+    # TESTING WHETHER THE ACCOUNT CAN LOG IN OR NOT:
     # print(f"Status: {login()}")
 
-    # Menguji apakah sistem VALIDASI FORMAT BEKERJA atau TIDAK:
+    # TESTING WHETHER THE FORMAT VALIDATION SYSTEM WORKS OR NOT:
     # print(f"Status: {validation_format("admin", "admin1234")}")
 
-    # Menguji apakah USERNAME dan PASSWORD BENAR, SALAH, atau TIDAK ADA:
+    # CHECK WHETHER THE USERNAME AND PASSWORD ARE CORRECT, INCORRECT, OR MISSING:
     # print(f"Status: {validation("admin", "admin1234")}")

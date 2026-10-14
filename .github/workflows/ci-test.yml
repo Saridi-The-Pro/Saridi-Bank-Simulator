@@ -1,0 +1,79 @@
+name: CI Build and Test
+
+on:
+  push:
+    branches: [ "main"]
+  pull_request:
+    branches: [ "main"]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # Handles both Linux (Ubuntu) and macOS environments
+    - name: Execute test execution (Unix)
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      run: |
+        timeout --signal=SIGINT 3s python bank.py <<EOF || true
+        yes
+        EOF
+
+    # Handles Windows environment
+    - name: Execute test execution (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |
+        powershell -Command "Start-Job -ScriptBlock { (echo yes) | python bank.py } | Wait-Job -Timeout 3; Get-Job | Stop-Job" || exit 0name: CI Build and Test
+
+on:
+  push:
+    branches: [ "main"]
+  pull_request:
+    branches: [ "main"]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # Handles both Linux (Ubuntu) and macOS environments
+    - name: Execute test execution (Unix)
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      run: |
+        timeout --signal=SIGINT 3s python bank.py <<EOF || true
+        yes
+        EOF
+
+    # Handles Windows environment
+    - name: Execute test execution (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |
+        powershell -Command "Start-Job -ScriptBlock { (echo yes) | python bank.py } | Wait-Job -Timeout 3; Get-Job | Stop-Job" || exit 0
