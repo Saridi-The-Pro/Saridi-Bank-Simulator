@@ -427,10 +427,11 @@ def decrease_balance(username, amount):
     except OverflowError:
         return "AMOUNT IS TOO LARGE!"
     except sqlite3.OperationalError as error:
-        try:
-            connection.rollback()
-        except sqlite3.Error:
-            pass
+        if connection is not None:
+            try:
+                connection.rollback()
+            except sqlite3.Error:
+                pass
         if error.sqlite_errorcode == sqlite3.SQLITE_BUSY:
             return "DATABASE IS BUSY. PLEASE TRY AGAIN."
         return "THE TRANSACTION COULD NOT BE PROCESSED AT THIS TIME. PLEASE TRY AGAIN SHORTLY."
