@@ -1,4 +1,5 @@
 from bcrypt import checkpw
+from getpass import getpass
 from auth import login, register, haveAccount, validation
 from database import (verification, create_table, view_balance, search_username, delete_user,
                       update_username_password, add_balance, decrease_balance, transfer_balance)
@@ -76,7 +77,7 @@ class Bank:
             print("THIS ACTION CANNOT BE UNDONE!")
             print("Type your \"USERNAME\" and \"PASSWORD\" before deleting this account")
             user = input("\nUSERNAME: ")
-            pws = input("PASSWORD: ")
+            pws = getpass("PASSWORD: ")
             valid = validation(user, pws)
             if isinstance(valid, str):
                 return [valid, False]
@@ -92,7 +93,7 @@ class Bank:
     def change_username(self, username):
         if search_username(username) is None:
             return "\nUNKNOWN USERNAME!"
-        password = input("\nInput password first: ")
+        password = getpass("\nInput password first: ")
         check = validation(username, password)
         if isinstance(check, str):
             return check
@@ -114,13 +115,13 @@ class Bank:
             return "\nUSERNAME CHANGE FAILED!"
     
     def change_password(self, username):
-        password = input("\nInput password first: ")
+        password = getpass("\nInput password first: ")
         check = validation(username, password)
         if isinstance(check, str):
             return check
         else:
             if search_username(username) is not None:
-                new_password = input("Please enter your new password: ")
+                new_password = getpass("Please enter your new password: ")
                 hashed_password = verification(username)
                 if hashed_password is None:
                     return "\nUNKNOWN USERNAME!"

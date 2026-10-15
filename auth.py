@@ -1,4 +1,5 @@
 from bcrypt import checkpw
+from getpass import getpass
 from database import add_user, verification
 from config import USERNAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MAX_BYTES
 
@@ -51,7 +52,7 @@ def haveAccount():
 
 def login():
     name = input("\nYour username: ")
-    password = input("Password: ")
+    password = getpass("Password: ")
     valid = validation_format(name, password)
     if isinstance(valid, str):
         return f"\nLOGIN FAILED: {valid}"
@@ -63,7 +64,7 @@ def login():
 
 def register():
     name = input("\nYour username: ")
-    password = input("Password: ")
+    password = getpass("Password: ")
     valid = validation_format(name, password)
     if isinstance(valid, str):
         return f"\nREGISTRATION FAILED: {valid}"
