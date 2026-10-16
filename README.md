@@ -1,6 +1,6 @@
 # Saridi Bank Simulator
 
-[![CI Build and Test](https://github.com/Saridi-The-Pro/saridi-bank-simulator/actions/workflows/ci-test.yml/badge.svg)](https://github.com/Saridi-The-Pro/saridi-bank-simulator/actions/workflows/ci-test.yml)
+[![CI Build and Test](https://github.com/Saridi-The-Pro/Saridi-Bank-Simulator/actions/workflows/ci-test.yml/badge.svg)](https://github.com/Saridi-The-Pro/Saridi-Bank-Simulator/actions/workflows/ci-test.yml)
 
 A local CLI banking simulator created as a personal learning project for Python backend development, SQLite databases, transaction logic, and application security.
 
