@@ -1,10 +1,3 @@
-# === NOTE PENGINGAT *Ke Diriku Sendiri*===
-
-# Fungsi file ini ada adalah agar "git" tidak mengcommit file-file dan folder di bawah ini
-# Contohnya "*.py" artinya mengabaikan semua yang berakhiran berekstensi .py
-# Terus "__pychache__/" artinya mengabaikan folder "__pycache__" TERMASUK ISINYA!
-# Kalau "__pychache__/auth.cpython-312.pyc" artinya hanya mengabaikan file "auth.cpython-312.pyc" yang berada di folder "__pycache__"
-
 venv/
 .venv/
 .vscode/
