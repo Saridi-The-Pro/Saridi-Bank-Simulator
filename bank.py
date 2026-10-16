@@ -1,7 +1,9 @@
+from bcrypt import checkpw
+from getpass import getpass
 from auth import login, register, haveAccount, validation
 from database import (verification, create_table, view_balance, search_username, delete_user,
                       update_username_password, add_balance, decrease_balance, transfer_balance)
-from config import MAX_BALANCE, MAX_TRANSACTION, USERNAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH
+from config import MAX_BALANCE, MAX_TRANSACTION, USERNAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MAX_BYTES
 
 class Bank:
     def __init__(self):
@@ -18,7 +20,7 @@ class Bank:
         except ValueError:
             return "\nENTER NUMBER ONLY OR DO NOT LEAVE IT BLANK!"
         except OverflowError:
-            return "\nDO NOT ENTER HUGE NUMBER!"
+            return "\nAMOUNT IS TOO LARGE!"
 
     def __parsing_username(self, username):
         if not isinstance(username, str):
@@ -28,7 +30,7 @@ class Bank:
             return "\nDO NOT LEAVE THE USERNAME BLANK!"
         elif length_user > USERNAME_MAX_LENGTH:
             return f"\nYOUR USERNAME IS TOO LONG (Maximum {USERNAME_MAX_LENGTH} Characters)!"
-        elif username.isalnum() == False:
+        elif username.isalnum() is False:
             return "\nSYMBOLS ARE NOT ALLOWED!"
         else:
             return True
@@ -75,8 +77,11 @@ class Bank:
             print("THIS ACTION CANNOT BE UNDONE!")
             print("Type your \"USERNAME\" and \"PASSWORD\" before deleting this account")
             user = input("\nUSERNAME: ")
-            pws = input("PASSWORD: ")
-            if not validation(user, pws) or username != user:
+            pws = getpass("PASSWORD: ")
+            valid = validation(user, pws)
+            if isinstance(valid, str):
+                return [valid, False]
+            if valid is False or username != user:
                 return ["\nENTER THE CORRECT USERNAME AND PASSWORD!", False]
             else:
                 result = delete_user(username)
@@ -86,11 +91,12 @@ class Bank:
                     return [f"\n\"{username}\" ACCOUNT HAS BEEN DELETED!", True]
 
     def change_username(self, username):
-        password = input("\nInput password first: ")
-        if validation(username, password) == False:
-            return "\nINCORRECT PASSWORD!"
         if search_username(username) is None:
             return "\nUNKNOWN USERNAME!"
+        password = getpass("\nInput password first: ")
+        check = validation(username, password)
+        if isinstance(check, str):
+            return check
         new_username = input("Please enter your new username: ")
         valid = self.__parsing_username(new_username)
         if isinstance(valid, str):
@@ -109,17 +115,24 @@ class Bank:
             return "\nUSERNAME CHANGE FAILED!"
     
     def change_password(self, username):
-        password = input("\nInput password first: ")
-        if validation(username, password) == False:
-            return "\nINCORRECT PASSWORD!"
+        password = getpass("\nInput password first: ")
+        check = validation(username, password)
+        if isinstance(check, str):
+            return check
         else:
             if search_username(username) is not None:
-                new_password = input("Please enter your new password: ")
-                result = verification(username)
+                new_password = getpass("Please enter your new password: ")
+                hashed_password = verification(username)
+                if hashed_password is None:
+                    return "\nUNKNOWN USERNAME!"
+                stored_password = hashed_password.encode("utf-8")
                 valid = self.__parsing_password(new_password)
                 if isinstance(valid, str):
                     return valid
-                elif result != new_password:
+                bytes_password = new_password.encode("utf-8")
+                if len(bytes_password) > PASSWORD_MAX_BYTES:
+                    return "\nPASSWORD TOO LONG! PLEASE USE A SHORTER PASSWORD."
+                if checkpw(bytes_password, stored_password) is False:
                     # When the status value is "False", the changes lead to "Password".
                     result2 = update_username_password(False, username, "", new_password)
                     if isinstance(result2, str):
@@ -147,8 +160,10 @@ class Bank:
                 status = self.__set_balance("DEPOSIT", username, result)
                 if isinstance(status, str):
                     return status
-                else:
+                if status is True:
                     return f"\n{result:,} successfully deposited to your balance!"
+                else:
+                    return status
         else:
             return result
         
@@ -170,8 +185,10 @@ class Bank:
                 status = self.__set_balance("WITHDRAW", username, result)
                 if isinstance(status, str):
                     return status
-                else:
+                if status is True:
                     return f"\n{result:,} successfully withdrawn!"
+                else:
+                    return status
         else:
             return result
     def transfer(self, username):
@@ -201,7 +218,9 @@ class Bank:
                     return f"\nEXCEEDED MAXIMUM BALANCE RECEIVER (MAX {MAX_BALANCE:,})!"
                 else:
                     status = self.__set_balance("TRANSFER", username, result[1], receiver_username)
-                    if not isinstance(status, str):
+                    if isinstance(status, str):
+                        return status
+                    if status is True:
                         return f"\n{result[1]:,} successfully transferred to {result[0]}!"
                     else:
                         return status
@@ -226,7 +245,7 @@ while True:
             if haveAccount():
                 acc.username = login()
                 if isinstance(acc.username,str):
-                    if acc.username.startswith("\nLOGIN FAILED"):
+                    if acc.username.startswith("\nLOGIN FAILED:"):
                         print(acc.username)
                     else:
                         session = True
@@ -266,14 +285,14 @@ while True:
                                     result = acc.change_username(acc.username)
                                     if isinstance(result, str):
                                         print(result)
-                                    elif result[0] == True:
+                                    elif result[0] is True:
                                         acc.username = result[1]
                                         print("\nCHANGED USERNAME SUCCESSFULLY!")
                                 case 2:
                                     result = acc.change_password(acc.username)
                                     if isinstance(result, str):
-                                        print(result)
-                                    elif result == True:
+                                        print(f"\n{result}")
+                                    elif result is True:
                                         print("\nCHANGED PASSWORD SUCCESSFULLY!")
                                 case _:
                                     print("\nSorry, we did not have that feature.")
@@ -281,7 +300,7 @@ while True:
                         except ValueError:
                             print("\nNUMBER ONLY OR DO NOT LEAVE IT BLANK!")
                     case 5:
-                        x = input("\nAre you sure you want to logout your account (yes/no)? ")
+                        x = (input("\nAre you sure you want to logout your account (yes/no)? ")).lower()
                         if x == "yes":
                             acc.username = ""
                             session = False
@@ -290,7 +309,7 @@ while True:
                         if x[1]:
                             print(x[0])
                             session = False
-                        elif x[1] == False:
+                        elif x[1] is False:
                             print(x[0])
                     case 7:
                         x = (input("\nAre you sure want to quit this bank(yes/no): ")).lower()
