@@ -1,0 +1,196 @@
+name: Resolve v0.2.0 Merge Conflicts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: resolve-v020-conflicts
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Merge, validate, and clean up
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Ambil branch fitur tanpa mengubah main.
+      - name: Checkout feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/password-hashing
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # 2. Ambil versi main terbaru.
+      - name: Fetch main
+        run: git fetch origin main
+
+      # 3. Mulai merge. Konflik akan ditangani pada langkah berikutnya.
+      - name: Start merge
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git merge --no-commit --no-ff origin/main; then
+            echo "Merge started without conflicts."
+          else
+            if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+              echo "::error::Merge failed before conflict resolution could begin."
+              exit 1
+            fi
+            echo "Merge has conflicts; checking the affected files."
+          fi
+
+          if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            echo "::error::No merge is in progress."
+            exit 1
+          fi
+
+      # 4. Hanya konflik yang sudah dikenal boleh diselesaikan otomatis.
+      - name: Check and resolve known conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          allowed=(
+            ".github/workflows/ci-test.yml"
+            ".gitignore"
+            "README.md"
+            "run.bat"
+            "run.sh"
+          )
+
+          mapfile -t conflicts < <(
+            git diff --name-only --diff-filter=U
+          )
+
+          for file in "${conflicts[@]}"; do
+            permitted=false
+
+            for allowed_file in "${allowed[@]}"; do
+              if [[ "$file" == "$allowed_file" ]]; then
+                permitted=true
+                break
+              fi
+            done
+
+            if [[ "$permitted" != true ]]; then
+              echo "::error::Unexpected conflict: $file"
+              git merge --abort
+              exit 1
+            fi
+          done
+
+          # Pertahankan versi branch fitur untuk file-file ini.
+          for file in \
+            ".github/workflows/ci-test.yml" \
+            "README.md" \
+            "run.bat" \
+            "run.sh"
+          do
+            if git diff --name-only --diff-filter=U |
+              grep -Fxq "$file"; then
+              git checkout --ours -- "$file"
+              git add "$file"
+            fi
+          done
+
+          # Gabungkan aturan .gitignore yang diperlukan.
+          if git diff --name-only --diff-filter=U |
+            grep -Fxq ".gitignore"; then
+            cat > .gitignore <<'EOF'
+          venv/
+          .venv/
+          .vscode/
+          __pycache__/
+          DB/*.db
+          NOTE
+          NOTE.md
+          EOF
+            git add .gitignore
+          fi
+
+          if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+            echo "::error::Unresolved conflicts remain."
+            git merge --abort
+            exit 1
+          fi
+
+      # 5. Siapkan Python dan periksa proyek sebelum melakukan push.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate Python project
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m compileall -q .
+          python -c "import bcrypt; print('bcrypt imported successfully')"
+
+      # 6. Buat merge commit.
+      - name: Create merge commit
+        run: |
+          git commit -m "Merge main into feature/password-hashing and resolve v0.2.0 conflicts"
+
+      # 7. Hapus workflow sementara dari branch fitur.
+      - name: Remove temporary workflow from feature branch
+        shell: bash
+        run: |
+          workflow_file=".github/workflows/resolve-v020-conflicts.yml"
+
+          if git ls-files --error-unmatch "$workflow_file" >/dev/null 2>&1; then
+            git rm "$workflow_file"
+            git commit -m "Remove temporary v0.2.0 conflict resolver"
+          fi
+
+      # 8. Push branch fitur hanya setelah resolusi dan validasi berhasil.
+      - name: Push feature branch
+        run: git push origin HEAD:feature/password-hashing
+
+      # 9. Hapus workflow sementara dari main juga.
+      # Langkah ini hanya berjalan jika seluruh langkah sebelumnya berhasil.
+      - name: Remove temporary workflow from main
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          workflow_file=".github/workflows/resolve-v020-conflicts.yml"
+
+          git fetch origin main
+          git switch -C cleanup-workflow origin/main
+
+          if git ls-files --error-unmatch "$workflow_file" >/dev/null 2>&1; then
+            git rm "$workflow_file"
+            git commit -m "Remove temporary conflict resolver workflow"
+            git push origin HEAD:main
+          else
+            echo "Temporary workflow is already absent from main."
+          fi
+
+      # 10. Pastikan file sementara sudah tidak ada di main.
+      - name: Verify cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin main
+
+          if git cat-file -e \
+            origin/main:.github/workflows/resolve-v020-conflicts.yml \
+            2>/dev/null; then
+            echo "::error::Temporary workflow still exists on main."
+            exit 1
+          fi
+
+          echo "Temporary workflow was removed from main."
