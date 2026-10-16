@@ -3,4 +3,5 @@ venv/
 .vscode/
 __pycache__/
 DB/*.db
+NOTE
 NOTE.md
