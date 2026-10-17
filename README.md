@@ -9,6 +9,18 @@ A local CLI banking simulator created as a personal learning project for Python 
 ## Current Version
 v0.2.0 - Password Security Update
 
+## Screenshots
+
+### Main Menu
+![SARIDI Bank Simulator Main Menu](docs/images/main-menu.png)
+
+### Login
+![SARIDI Bank Simulator Login](docs/images/login.png)
+
+### Banking Operations
+![SARIDI Bank Simulator Banking Operations](docs/images/banking-operations.png)
+
+
 ## Current Features
 - Account registration and login
 - SQLite-based balance storage
