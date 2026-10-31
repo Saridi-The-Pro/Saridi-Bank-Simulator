@@ -336,8 +336,9 @@ def add_balance(username, amount):
     connection = None
     cursor = None
     try:
-        amount = int(amount)
-        if amount > 0:
+        if type(amount) is not int:
+            raise ValueError
+        elif amount > 0:
             if amount > MAX_TRANSACTION:
                 return f"EXCEEDED MAXIMUM MONEY TRANSACTION (MAX {MAX_TRANSACTION:,})!"
             else:
@@ -394,8 +395,9 @@ def decrease_balance(username, amount):
     connection = None
     cursor = None
     try:
-        amount = int(amount)
-        if amount > 0:
+        if type(amount) is not int:
+            raise ValueError
+        elif amount > 0:
             if amount > MAX_TRANSACTION:
                 return f"EXCEEDED MAXIMUM MONEY TRANSACTION (MAX {MAX_TRANSACTION:,})!"
             else:
@@ -454,8 +456,9 @@ def transfer_balance(username, amount, receiver):
     connection = None
     cursor = None
     try:
-        amount = int(amount)
-        if amount > 0:
+        if type(amount) is not int:
+            raise ValueError
+        elif amount > 0:
             if amount > MAX_TRANSACTION:
                 return f"EXCEEDED MAXIMUM MONEY TRANSACTION (MAX {MAX_TRANSACTION:,})!"
             else:
