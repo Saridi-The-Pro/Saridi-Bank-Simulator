@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 import sqlite3
+import threading
 import database
 
 class TestDatabase(unittest.TestCase):
@@ -15,7 +16,7 @@ class TestDatabase(unittest.TestCase):
         "recipient": {
             "username": "dummyAccount2",
             "password": "123456789012345",
-            "balance": 10000
+            "balance": 0
         }
     }
 
@@ -46,8 +47,8 @@ class TestDatabase(unittest.TestCase):
             connection.commit()
         finally:
             try:
-                if connection is not None:
-                    connection.close()
+                if cursor is not None:
+                    cursor.close()
             finally:
                 if connection is not None:
                     connection.close()
@@ -69,7 +70,7 @@ class TestDatabase(unittest.TestCase):
             self.assertIsNotNone(result)
         finally:
             try:
-                if connection is not None:
+                if cursor is not None:
                     cursor.close()
             finally:
                 if connection is not None:
@@ -89,11 +90,24 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(columns_types, ["INTEGER", "TEXT", "TEXT", "INTEGER"])
         finally:
             try:
-                if connection is not None:
+                if cursor is not None:
                     cursor.close()
             finally:
                 if connection is not None:
                     connection.close()
+    
+    def test_database_busy_error(self):
+        sender = self.TEST_ACCOUNTS["sender"]
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        amount = 10000
+        connection = sqlite3.connect(self.db_path)
+        connection.execute("BEGIN EXCLUSIVE")
+        try:
+            result = database.add_balance(sender["username"], amount)
+            self.assertEqual(result, "DATABASE IS BUSY. PLEASE TRY AGAIN.")
+        finally:
+            connection.rollback()
+            connection.close()
     
     def get_user_balance(self, username):
         connection = None
@@ -108,7 +122,7 @@ class TestDatabase(unittest.TestCase):
             return balance
         finally:
             try:
-                if connection is not None:
+                if cursor is not None:
                     cursor.close()
             finally:
                 if connection is not None:
@@ -152,7 +166,26 @@ class TestDatabase(unittest.TestCase):
             if result is True:
                 raise RuntimeError("Failed \"add_balance()\" database: deposit with invalid amount!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
- 
+
+    def test_add_balance_concurrency(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        amount = 10000
+        results = []
+        def transaction_execution():
+            result = database.add_balance(sender["username"], amount)
+            results.append(result)
+        threads = [threading.Thread(target=transaction_execution) for i in range(10)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        for result in results:
+            self.assertTrue(
+                result is True or result == "DATABASE IS BUSY. PLEASE TRY AGAIN.",
+                f"Failed \"add_balance()\" database: {result}"
+            )
+
     def test_decrease_balance(self):
         sender = self.TEST_ACCOUNTS["recipient"].copy()
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
@@ -181,6 +214,26 @@ class TestDatabase(unittest.TestCase):
             if result is True:
                 raise RuntimeError("Failed \"decrease_balance()\" database: withdraw with invalid amount!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
+    
+    def test_decrease_balance_concurrency(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender["balance"] = 100_000
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        amount = 10000
+        results = []
+        def transaction_execution():
+            result = database.decrease_balance(sender["username"], amount)
+            results.append(result)
+        threads = [threading.Thread(target=transaction_execution) for i in range(10)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        for result in results:
+            self.assertTrue(
+                result is True or result == "DATABASE IS BUSY. PLEASE TRY AGAIN.",
+                f"Failed \"decrease_balance()\" database: {result}"
+            )
 
     def test_transfer_balance(self):
         sender = self.TEST_ACCOUNTS["sender"].copy()
@@ -241,6 +294,58 @@ class TestDatabase(unittest.TestCase):
         if result != "UNKNOWN RECEIVER USERNAME!":
             raise RuntimeError("Failed \"transfer_balance()\" database: Transferred into fake account!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
+
+    def test_transfer_balance_concurrency(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender["balance"] = 100000
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        amount = 10000
+        receiver = self.TEST_ACCOUNTS["recipient"].copy()
+        self.create_dummy_user(receiver["username"], receiver["password"], receiver["balance"])
+        results = []
+        def transaction_execution():
+            result = database.transfer_balance(sender["username"], amount, receiver["username"])
+            results.append(result)
+        threads = [threading.Thread(target=transaction_execution) for i in range(10)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        for result in results:
+            self.assertTrue(
+                result is True or result == "DATABASE IS BUSY. PLEASE TRY AGAIN.",
+                f"Failed \"transfer_balance()\" database: {result}"
+            )
+
+    def test_balance_consistency(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        old_username = sender["username"]
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        new_username = "dummyAccount3"
+        result = database.update_username_password(True, username=sender["username"], new_username=new_username)
+        if result is not True:
+            raise RuntimeError(f"Failed \"update_username_password()\" database: {result}")
+        new_balance = self.get_user_balance(new_username)
+        old_balance = self.get_user_balance(old_username)
+        self.assertEqual(sender["balance"], new_balance)
+        self.assertIsNone(old_balance)
+    
+    def test_identical_password(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        result = database.update_username_password(False, username=sender["username"], new_password=sender["password"])
+        if not result == "DO NOT ENTER THE SAME PASSWORD AS THE NEW PASSWORD!":
+            raise RuntimeError("Failed \"update_username_password()\" database: The password has been changed back to the original password!")
+
+    def test_password_bytes_limit(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender["password"] = "✅" * 6
+        result = database.add_user(sender["username"], sender["password"], sender["balance"])
+        if result != "YOUR PASSWORD IS TOO LONG! PLEASE USE A SHORTER PASSWORD.":
+            raise RuntimeError(f"Failed \"add_user()\" database: {result}")
+        result = database.update_username_password(False, username=sender["username"], new_password=sender["password"])
+        if result != "PASSWORD TOO LONG! PLEASE USE A SHORTER PASSWORD.":
+            raise RuntimeError(f"Failed \"update_username_password()\" database: {result}")
 
 if __name__ == "__main__":
     unittest.main()
