@@ -126,13 +126,13 @@ def add_user(username, password):
         return "ENTER CHARACTERS ONLY!"
     length_new_user = len(username)
     length_new_pass = len(password)
-    if length_new_user == 0:
+    if len(username.strip()) == 0:
         return "DO NOT LEAVE USERNAME OR NEW USERNAME BLANK!"
     if length_new_user > USERNAME_MAX_LENGTH:
         return f"YOUR USERNAME IS TOO LONG (Maximum {USERNAME_MAX_LENGTH} Characters)!"
     if username.isalnum() == False:
         return "SYMBOLS ARE NOT ALLOWED!"
-    if length_new_pass == 0:
+    if len(password.strip()) == 0:
         return "DO NOT LEAVE THE PASSWORD BLANK!"
     if length_new_pass < PASSWORD_MIN_LENGTH:
         return f"YOUR PASSWORD IS TOO SHORT (Minimum {PASSWORD_MIN_LENGTH} Characters)!"
@@ -202,7 +202,7 @@ def update_username_password(status, username, new_username="", new_password="")
                 if not isinstance(new_username, str):
                     return "ENTER CHARACTERS ONLY!"
                 length_new_user = len(new_username)
-                if length_new_user == 0:
+                if len(new_username.strip()) == 0:
                     return "DO NOT LEAVE USERNAME OR NEW USERNAME BLANK!"
                 cursor.execute("SELECT username FROM users WHERE username = ?", (new_username,))
                 validation = cursor.fetchone()
@@ -233,7 +233,7 @@ def update_username_password(status, username, new_username="", new_password="")
                 if not isinstance(new_password, str):
                     return "ENTER CHARACTERS ONLY!"
                 length_new_pass = len(new_password)
-                if length_new_pass == 0:
+                if len(new_password.strip()) == 0:
                     return "DO NOT LEAVE THE PASSWORD BLANK!"
                 if length_new_pass < PASSWORD_MIN_LENGTH:
                     return f"YOUR PASSWORD IS TOO SHORT (Minimum {PASSWORD_MIN_LENGTH} Characters)!"
@@ -338,7 +338,9 @@ def add_balance(username, amount):
     try:
         if type(amount) is not int:
             raise ValueError
-        elif amount > 0:
+        if len(username.strip()) == 0:
+            return "DO NOT LEAVE USERNAME BLANK!"
+        if amount > 0:
             if amount > MAX_TRANSACTION:
                 return f"EXCEEDED MAXIMUM MONEY TRANSACTION (MAX {MAX_TRANSACTION:,})!"
             else:
@@ -397,7 +399,9 @@ def decrease_balance(username, amount):
     try:
         if type(amount) is not int:
             raise ValueError
-        elif amount > 0:
+        if len(username.strip()) == 0:
+            return "DO NOT LEAVE USERNAME BLANK!"
+        if amount > 0:
             if amount > MAX_TRANSACTION:
                 return f"EXCEEDED MAXIMUM MONEY TRANSACTION (MAX {MAX_TRANSACTION:,})!"
             else:
@@ -458,7 +462,9 @@ def transfer_balance(username, amount, receiver):
     try:
         if type(amount) is not int:
             raise ValueError
-        elif amount > 0:
+        if len(username.strip()) == 0:
+            return "DO NOT LEAVE USERNAME BLANK!"
+        if amount > 0:
             if amount > MAX_TRANSACTION:
                 return f"EXCEEDED MAXIMUM MONEY TRANSACTION (MAX {MAX_TRANSACTION:,})!"
             else:
