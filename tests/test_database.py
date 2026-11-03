@@ -167,8 +167,15 @@ class TestDatabase(unittest.TestCase):
                 raise RuntimeError("Failed \"add_balance()\" database: deposit with invalid amount!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
 
+    def test_add_balance_fake_account(self):
+        sender = self.TEST_ACCOUNTS["recipient"].copy()
+        amount = 10000
+        result = database.add_balance(sender["username"], amount)
+        if result != "UNKNOWN USERNAME!":
+            raise RuntimeError(f"Failed \"add_balance()\" database: {result}")
+
     def test_add_balance_concurrency(self):
-        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender = self.TEST_ACCOUNTS["recipient"].copy()
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
         amount = 10000
         results = []
@@ -187,7 +194,7 @@ class TestDatabase(unittest.TestCase):
             )
 
     def test_decrease_balance(self):
-        sender = self.TEST_ACCOUNTS["recipient"].copy()
+        sender = self.TEST_ACCOUNTS["sender"].copy()
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
         amount = 10000
         result = database.decrease_balance(sender["username"], amount)
@@ -197,7 +204,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"] - amount)
     
     def test_decrease_balance_over_transaction(self):
-        sender = self.TEST_ACCOUNTS["recipient"].copy()
+        sender = self.TEST_ACCOUNTS["sender"].copy()
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
         amount = 100_000_001
         result = database.decrease_balance(sender["username"], amount)
@@ -205,8 +212,17 @@ class TestDatabase(unittest.TestCase):
             raise RuntimeError("Failed \"decrease_balance\" database: Withdraw while the transaction amount passed the limit!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
 
+    def test_decrease_balance_more_than_balance(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        amount = 20000
+        result = database.decrease_balance(sender["username"], amount)
+        if result != "DO NOT WITHDRAW MORE THAN YOUR BALANCE!":
+            raise RuntimeError(f"Failed \"decrease_balance()\" database: {result}")
+        self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
+
     def test_decrease_balance_anomaly_datatype(self):
-        sender = self.TEST_ACCOUNTS["recipient"].copy()
+        sender = self.TEST_ACCOUNTS["sender"].copy()
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
         amounts = ("10000", 10000j, None, -10000, -10000.9)
         for amount in amounts:
@@ -215,6 +231,13 @@ class TestDatabase(unittest.TestCase):
                 raise RuntimeError("Failed \"decrease_balance()\" database: withdraw with invalid amount!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
     
+    def test_decrease_balance_fake_account(self):
+        sender = self.TEST_ACCOUNTS["sender"]
+        amount = 10000
+        result = database.decrease_balance(sender["username"], amount)
+        if result != "UNKNOWN USERNAME!":
+            raise RuntimeError(f"Failed \"decrease_balance()\" database: {result}")
+
     def test_decrease_balance_concurrency(self):
         sender = self.TEST_ACCOUNTS["sender"].copy()
         sender["balance"] = 100_000
@@ -273,6 +296,18 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
         self.assertEqual(self.get_user_balance(receiver["username"]), receiver["balance"])
 
+    def test_transfer_balance_more_than_balance(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        amount = 20000
+        receiver = self.TEST_ACCOUNTS["recipient"].copy()
+        self.create_dummy_user(receiver["username"], receiver["password"], receiver["balance"])
+        result = database.transfer_balance(sender["username"], amount, receiver["username"])
+        if result != "DO NOT TRY TO TRANSFER MORE THAN YOUR BALANCE!":
+            raise RuntimeError(f"Failed \"transfer_balance()\" database: {result}")
+        self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
+        self.assertEqual(self.get_user_balance(receiver["username"]), receiver["balance"])
+
     def test_transfer_balance_anomaly_datatype(self):
         sender = self.TEST_ACCOUNTS["sender"].copy()
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
@@ -294,6 +329,14 @@ class TestDatabase(unittest.TestCase):
         if result != "UNKNOWN RECEIVER USERNAME!":
             raise RuntimeError("Failed \"transfer_balance()\" database: Transferred into fake account!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
+
+    def test_transfer_balance_the_same_account(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        amount = 10000
+        result = database.transfer_balance(sender["username"], amount, sender["username"])
+        if result != "DO NOT TRY TO TRANSFER TO YOURSELF!":
+            raise RuntimeError(f"Failed \"transfer_balance()\" database: {result}")
 
     def test_transfer_balance_concurrency(self):
         sender = self.TEST_ACCOUNTS["sender"].copy()
@@ -329,23 +372,79 @@ class TestDatabase(unittest.TestCase):
         old_balance = self.get_user_balance(old_username)
         self.assertEqual(sender["balance"], new_balance)
         self.assertIsNone(old_balance)
+
+    def test_update_password_bytes_limit(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        long_password = ("✅" * 25)
+        database.add_user(sender["username"], sender["password"])
+        result = database.update_username_password(False, username=sender["username"], new_password=long_password)
+        if result != "PASSWORD TOO LONG! PLEASE USE A SHORTER PASSWORD.":
+            raise RuntimeError(f"Failed \"update_username_password()\" database: {result}")
+
+    def test_update_exist_username(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        database.add_user(sender["username"], sender["password"])
+        receiver = self.TEST_ACCOUNTS["recipient"].copy()
+        database.add_user(receiver["username"], receiver["password"])
+        result = database.update_username_password(True, username=sender["username"], new_username=receiver["username"])
+        if result != "USERNAME IS ALREADY TAKEN! PLEASE CHOOSE THE OTHER ONE!":
+            raise RuntimeError(f"Failed \"update_username_password()\" database: {result}")
+
+    def test_identical_username(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        database.add_user(sender["username"], sender["password"])
+        result = database.update_username_password(True, username=sender["username"], new_username=sender["username"])
+        if result != "DO NOT ENTER THE SAME USERNAME AS THE NEW USERNAME!":
+            raise RuntimeError(f"Failed \"update_username_password()\" database: {result}")
     
     def test_identical_password(self):
         sender = self.TEST_ACCOUNTS["sender"].copy()
-        self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
+        database.add_user(sender["username"], sender["password"])
         result = database.update_username_password(False, username=sender["username"], new_password=sender["password"])
-        if not result == "DO NOT ENTER THE SAME PASSWORD AS THE NEW PASSWORD!":
-            raise RuntimeError("Failed \"update_username_password()\" database: The password has been changed back to the original password!")
+        if result != "DO NOT ENTER THE SAME PASSWORD AS THE NEW PASSWORD!":
+            raise RuntimeError(f"Failed \"update_username_password()\" database: {result}")
 
-    def test_password_bytes_limit(self):
+    def test_add_exist_username(self):
         sender = self.TEST_ACCOUNTS["sender"].copy()
-        sender["password"] = "✅" * 6
-        result = database.add_user(sender["username"], sender["password"], sender["balance"])
+        database.add_user(sender["username"], sender["password"])
+        result = database.add_user(sender["username"], sender["password"])
+        if result != "USERNAME IS ALREADY TAKEN! PLEASE CHOOSE THE OTHER ONE!":
+            raise RuntimeError(f"Failed \"add_user()\" database: {result}")
+
+    def test_add_user_blank_username(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender["username"] = ""
+        result = database.add_user(sender["username"], sender["password"])
+        if result != "DO NOT LEAVE USERNAME OR NEW USERNAME BLANK!":
+            raise RuntimeError(f"Failed \"add_user()\" database: {result}")
+
+    def test_add_user_whitespace_username(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender["username"] = "     "
+        result = database.add_user(sender["username"], sender["password"])
+        if result != "DO NOT LEAVE USERNAME OR NEW USERNAME BLANK!":
+            raise RuntimeError(f"Failed \"add_user()\" database: {result}")
+
+    def test_add_user_blank_password(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender["password"] = ""
+        result = database.add_user(sender["username"], sender["password"])
+        if result != "DO NOT LEAVE THE PASSWORD BLANK!":
+            raise RuntimeError(f"Failed \"add_user()\" database: {result}")
+    
+    def test_add_user_whitespace_password(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        sender["password"] = "     "
+        result = database.add_user(sender["username"], sender["password"])
+        if result != "DO NOT LEAVE THE PASSWORD BLANK!":
+            raise RuntimeError(f"Failed \"add_user()\" database: {result}")
+
+    def test_add_user_password_bytes_limit(self):
+        sender = self.TEST_ACCOUNTS["sender"].copy()
+        long_password = ("✅" * 25)
+        result = database.add_user(sender["username"], long_password)
         if result != "YOUR PASSWORD IS TOO LONG! PLEASE USE A SHORTER PASSWORD.":
             raise RuntimeError(f"Failed \"add_user()\" database: {result}")
-        result = database.update_username_password(False, username=sender["username"], new_password=sender["password"])
-        if result != "PASSWORD TOO LONG! PLEASE USE A SHORTER PASSWORD.":
-            raise RuntimeError(f"Failed \"update_username_password()\" database: {result}")
 
 if __name__ == "__main__":
     unittest.main()
