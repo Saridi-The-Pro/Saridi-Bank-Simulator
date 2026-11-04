@@ -141,7 +141,7 @@ class TestDatabase(unittest.TestCase):
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
         amount = 1
         result = database.add_balance(sender["username"], amount)
-        self.assertStartsWith(result, "EXCEEDED MAXIMUM BALANCE", msg=f"Failed \"add_balance()\" database: {result}")
+        self.assertTrue(result.startswith("EXCEEDED MAXIMUM BALANCE"), msg=f"Failed \"add_balance()\" database: {result}")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"], msg=f"Failed \"add_balance()\" database: {result}")
 
     def test_add_balance_over_transaction(self):
@@ -149,7 +149,7 @@ class TestDatabase(unittest.TestCase):
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
         amount = 100_000_001
         result = database.add_balance(sender["username"], amount)
-        self.assertStartsWith(result, "EXCEEDED MAXIMUM MONEY TRANSACTION", msg=f"Failed \"add_balance()\" database: {result}")
+        self.assertTrue(result.startswith("EXCEEDED MAXIMUM MONEY TRANSACTION"), msg=f"Failed \"add_balance()\" database: {result}")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"], msg=f"Failed \"add_balance()\" database: {result}")
 
     def test_add_balance_anomaly_datatype(self):
@@ -199,7 +199,7 @@ class TestDatabase(unittest.TestCase):
         self.create_dummy_user(sender["username"], sender["password"], sender["balance"])
         amount = 100_000_001
         result = database.decrease_balance(sender["username"], amount)
-        self.assertStartsWith(result, "EXCEEDED MAXIMUM MONEY TRANSACTION", msg=f"Failed \"decrease_balance\" database: {result}")
+        self.assertTrue(result.startswith("EXCEEDED MAXIMUM MONEY TRANSACTION"), msg=f"Failed \"decrease_balance\" database: {result}")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
 
     def test_decrease_balance_more_than_balance(self):
@@ -264,7 +264,7 @@ class TestDatabase(unittest.TestCase):
         receiver["balance"] = 999_000_000_000_000
         self.create_dummy_user(receiver["username"], receiver["password"], receiver["balance"])
         result = database.transfer_balance(sender["username"], amount, receiver["username"])
-        self.assertStartsWith(result, "EXCEEDED MAXIMUM RECEIVER BALANCE", msg="Failed \"transfer_balance()\" database: Transferred more than receiver balance limit!")
+        self.assertTrue(result.startswith("EXCEEDED MAXIMUM RECEIVER BALANCE"), msg="Failed \"transfer_balance()\" database: Transferred more than receiver balance limit!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
         self.assertEqual(self.get_user_balance(receiver["username"]), receiver["balance"])
     
@@ -275,7 +275,7 @@ class TestDatabase(unittest.TestCase):
         receiver = self.TEST_ACCOUNTS["recipient"].copy()
         self.create_dummy_user(receiver["username"], receiver["password"], receiver["balance"])
         result = database.transfer_balance(sender["username"], amount, receiver["username"])
-        self.assertStartsWith(result, "EXCEEDED MAXIMUM MONEY TRANSACTION", msg="Failed \"transfer_balance()\" database: Transferred while the transaction amount passed the limit!")
+        self.assertTrue(result.startswith("EXCEEDED MAXIMUM MONEY TRANSACTION"), msg="Failed \"transfer_balance()\" database: Transferred while the transaction amount passed the limit!")
         self.assertEqual(self.get_user_balance(sender["username"]), sender["balance"])
         self.assertEqual(self.get_user_balance(receiver["username"]), receiver["balance"])
 
