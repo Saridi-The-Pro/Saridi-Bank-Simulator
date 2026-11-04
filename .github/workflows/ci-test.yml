@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/password-hashing
   pull_request:
     branches:
       - main
@@ -38,3 +37,6 @@ jobs:
 
       - name: Verify bcrypt installation
         run: python -c "import bcrypt; print('bcrypt imported successfully')"
+      
+      - name: Run unit tests
+        run: python -m unittest discover tests --verbose
