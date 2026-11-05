@@ -1,13 +1,13 @@
 # Saridi Bank Simulator
 
-[![CI Build and Test](https://github.com/Saridi-The-Pro/Saridi-Bank-Simulator/actions/workflows/ci-test.yml/badge.svg)](https://github.com/Saridi-The-Pro/Saridi-Bank-Simulator/actions/workflows/ci-test.yml)
+[![CI Build and Test](https://github.com/Saridi-The-Pro/Saridi-Bank-Simulator/actions/workflows/ci-test.yml/badge.svg?branch=main)](https://github.com/Saridi-The-Pro/Saridi-Bank-Simulator/actions/workflows/ci-test.yml)
 
 A local CLI banking simulator created as a personal learning project for Python backend development, SQLite databases, transaction logic, and application security.
 
 > Disclaimer: This project uses fictional credits only. It is not a real bank, payment service, or financial product.
 
 ## Current Version
-v0.2.0 - Password Security Update
+v0.2.1 - Database Unit Testing & Automated Pipeline
 
 ## Screenshots
 
@@ -25,13 +25,15 @@ v0.2.0 - Password Security Update
 - Account registration and login
 - SQLite-based balance storage
 - Password hashing with bcrypt
-- Hidden password input using getpass()
+- Hidden password input using `getpass()`
 - Deposit and withdrawals
 - Transfers between accounts
 - Username and password changes
 - Account deletion with validation
 - Transaction and balance limits
-- Input validation and basic SQL injection protection
+- Input validation, whitespace sanitization, and basic SQL injection protection
+- Comprehensive database unit testing suite (including concurrency and error scenarios)
+- Automated cross-platform CI/CD testing and executable release workflows
 
 ## Planned Features
 - Transaction history for deposits, withdrawals, and transfers
@@ -41,7 +43,7 @@ v0.2.0 - Password Security Update
 - Flask API and web interface
 
 ## Dependencies
-- Python 3 (minimum supported version to be confirmed).
+- Python (3.11 - 3.14)
 - bcrypt
 Install the required dependencies using pip:
 ```bash
@@ -78,6 +80,16 @@ Choose the method that works best for your operating system:
    ```bash
    python3 bank.py
    ```
+
+### Method 3: Running Pre-built Executables (No Python Required)
+If you don't have Python installed, you can download standalone binaries directly from the **[Releases](https://github.com/Saridi-The-Pro/Saridi-Bank-Simulator/releases)** page:
+* **Windows Users:** Download `bank.exe` and double-click to run.
+* **Linux Users:** Download `bank`, grant execution permissions, and run in terminal:
+  ```bash
+  chmod +x bank
+  ./bank
+  ```
+* **macOS Users:** Please use Method 1 or Method 2 (running via Python 3 source code) due to Apple Gatekeeper binary signing requirements.
 
 ## License & Copyright
 > Copyright (c) 2026 Saridi. All rights reserved.
