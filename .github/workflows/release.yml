@@ -1,0 +1,41 @@
+name: Release Executables
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build Executable
+        run: pyinstaller --clean --onefile bank.py
+
+      - name: Upload Artifact to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            dist/bank.exe
+            dist/bank
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
